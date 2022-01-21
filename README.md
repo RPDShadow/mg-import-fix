@@ -4,6 +4,7 @@ Most of this was coded fairly hastily and is a far from optimal solution, it run
 Feel free to use and modify this program as you see fit.
 
 How to use:
+
 1:  Install the custom backup anki add-on that can be found here:
 
     https://github.com/glutanimate/custom-text-backup
