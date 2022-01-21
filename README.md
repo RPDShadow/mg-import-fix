@@ -15,6 +15,6 @@ How to use:
   
 4.  Select which deck(s) and field (one per deck) you want to import
  
-5.  Navigated to the restore from backup function within the migaku browser extension and pass over the .json file you have just generated using this program
+5.  Navigate to the restore from backup function within the migaku browser extension and pass over the .json file you have just generated using this program
   
 6.  Success! You have successfully imported your deck(s)!
