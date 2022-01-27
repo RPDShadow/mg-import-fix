@@ -69,8 +69,6 @@ def findFields(fileName, deckList):
                 fEnd = 0
         fieldNames[currentDeck] = fieldsInDeck
 
-    print(fieldNames)
-
     return fieldNames
 
 def cleanFile(fileName, fieldNames):
