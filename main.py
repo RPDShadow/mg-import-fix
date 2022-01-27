@@ -1,6 +1,10 @@
 from datetime import date
 import os
 
+##TO-DO##
+#Multiple fields within a deck support
+#Katakana to hiragana conversion
+
 def findFiles():
     txtFiles = []
     for file in os.listdir(os.getcwd()):
@@ -8,36 +12,68 @@ def findFiles():
             txtFiles.append(os.path.join(os.getcwd(), file))
     return txtFiles
 
-def findFields(fileName):
-    fieldNames = []
-    fStart = 0
-    fEnd = 0
+def selectFromList(listName, passedList):
+    print("\n" + listName + " list. Please enter a number to select desired file, or enter 'a' to select all.\n")
+    for num in range(0, len(passedList)):
+        print(str(num)+": "+passedList[num])
+    listSelection = input("\nEnter selection: ")
+    if listSelection == "a":
+        userSelection = passedList
+    else:
+        userSelection = []
+        listSelection = int(listSelection)
+        userValue = passedList[listSelection]
+        userSelection.append(userValue)
+
+    return userSelection
+
+def getDecks(fileName):
+    deckNames = []
     currentFile = open(fileName, encoding="utf-8")
     currentContents = currentFile.read().splitlines()
     for x in range(0, len(currentContents)):
         currentLine = currentContents[x]
-        if "<--FLDSTART-->" in currentLine:
-            if fStart == 0:
-                fStart = x
-        if "<--FLDEND-->" in currentLine:
-            if fEnd == 0:
-                fEnd = x
-    for y in range(fStart, fEnd):
-        currentLine = currentContents[y]
-        if "<<<<field:" in currentLine:
-            fieldNames.append(currentLine)
+        if "deck:" in currentLine:
+            inList = False
+            for y in range(0, len(deckNames)):
+                if currentLine == deckNames [y]:
+                    inList = True
+            if not inList:
+                deckNames.append(currentLine)
+    
+    return deckNames
+
+
+def findFields(fileName, deckList):
+    fieldNames = {}
+    fStart = 0
+    fEnd = 0
+    currentFile = open(fileName, encoding="utf-8")
+    currentContents = currentFile.read().splitlines()
+    for deckNum in range(0, len(deckList)):
+        currentDeck = deckList[deckNum]
+        fieldsInDeck = []
+        for x in range(0, len(currentContents)):
+            currentLine = currentContents[x]
+            if "<--FLDSTART-->" in currentLine and currentContents[x-4] == currentDeck:
+                if fStart == 0:
+                    fStart = x
+            if "<--FLDEND-->" in currentLine and fStart != 0:
+                if fEnd == 0:
+                    fEnd = x
+        for y in range(fStart, fEnd):
+            currentLine = currentContents[y]
+            if "<<<<field:" in currentLine:
+                fieldsInDeck.append(currentLine)
+                fStart = 0
+                fEnd = 0
+        fieldNames[currentDeck] = fieldsInDeck
+
+    print(fieldNames)
 
     return fieldNames
 
-def takeInputs():
-    fieldName = input("\nCase sensitive!\n\nEnter field name: ")
-    fileName = input("\nCase sensitive!\n\nEnter file name: ")
-    fieldFull = "<<<<field: " + fieldName + ">>>>"
-    fileFull = fileName + ".txt"
-
-    return(fileFull, fieldFull)
-
-def cleanFile(fileName, fieldName):
+def cleanFile(fileName, fieldNames):
     newLines = []
     currentFile = open(fileName, encoding="utf-8")
     currentContents = currentFile.read().splitlines()
@@ -51,16 +87,20 @@ def cleanFile(fileName, fieldName):
             currentForcast = currentLine[-10:]
             cfList = currentForcast.split("-")
             cfDate = date(int(cfList[0]), int(cfList[1]), int(cfList[2]))
-        if fieldName in currentLine:
-            currentField = currentContents[x+1]
-            dateDelta = cfDate - clrDate
-            interval = dateDelta.days
-            if interval >= 21:
-                mature = "2"
-            else:
-                mature = "1"
-            newLine = currentField + " " + mature
-            newLines.append(newLine)
+        if "deck:" in currentLine:
+            deckFields = fieldNames[currentLine]
+        if "<<<<field:" in currentLine:
+            for fieldNumber in range(0, len(deckFields)):
+                if deckFields[fieldNumber] in currentLine:
+                    currentField = currentContents[x+1]
+                    dateDelta = cfDate - clrDate
+                    interval = dateDelta.days
+                    if interval >= 21:
+                        mature = "2"
+                    else:
+                        mature = "1"
+                    newLine = currentField + " " + mature
+                    newLines.append(newLine)
 
     return newLines
 
@@ -229,32 +269,27 @@ def writeFile(fileName, content):
     currentFile.close()
 
 def main():
-    Looping = True
-    firstLoop = True
-    while Looping:
-        files = findFiles()
-        print("\nFile list. Please enter a number to select desired file.\n")
-        for num in range(0, len(files)):
-            print(str(num)+": "+files[num])
-        fileNumSelection = int(input("\nEnter selection: "))
-        fileSelection = files[fileNumSelection]
-        fields = findFields(fileSelection)
-        print("\nField list. Please enter a number to select desired file.\n")
-        for numb in range(0, len(fields)):
-            print(str(numb)+": "+fields[numb])
-        fieldNumSelection = int(input("\nEnter selection: "))
-        fieldSelection = fields[fieldNumSelection]
-        cleanedLines = cleanFile(fileSelection, fieldSelection)
-        if firstLoop:
-            formattedLines = formatList(cleanedLines)
-        else:
-            formattedLines = formattedLines + formatList(cleanedLines)
-        continueLoop = input("\nWould you like to continue inputing from another file? (y/n): ")
-        while continueLoop != "y" and continueLoop != "n":
-            continueLoop = input("\nInvalid input!\nWould you like to continue inputing from another file? (y/n): ")
-        if continueLoop == "n":
-            Looping = False
-        firstLoop = False
+    files = findFiles()
+    fileSelection = selectFromList("File", files)
+
+    cleanedLines = []
+    for fileNum in range(0, len(fileSelection)):
+        deckSelection = {}
+        fieldSelection = {}
+        currentFile = fileSelection[fileNum]
+        decks = getDecks(currentFile)
+        deckListName = str(currentFile) + " Deck "
+        deckSelection[currentFile] = selectFromList(deckListName, decks)
+        fields = findFields(currentFile, deckSelection[currentFile])
+        for deckNum in range(0, len(deckSelection[currentFile])):
+            currentDeckFields = []
+            fieldListName = str((deckSelection[currentFile])[deckNum]) + " Field "
+            currentDeck = (deckSelection[currentFile])[deckNum]
+            currentDeckFields = currentDeckFields + selectFromList(fieldListName, fields[currentDeck])
+            fieldSelection[currentDeck] = currentDeckFields
+        cleanedLines = cleanedLines + cleanFile(currentFile, fieldSelection)
+    formattedLines = formatList(cleanedLines)
+    writeFile("test.txt", str(formattedLines))
     sortedLines = orderLines(formattedLines)
     savingLine = convertToSavingFormat(sortedLines)
     writeFile("799d8d06-248a-49a3-8998-01ca54d81882.json", savingLine)
