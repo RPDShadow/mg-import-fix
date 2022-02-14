@@ -3,7 +3,23 @@ import os
 
 ##TO-DO##
 #Multiple fields within a deck support
-#Katakana to hiragana conversion
+#Tidy code
+
+#Constants#
+HIRAGANA = ["あ","い","う","え","お","か","き","く","け","こ","さ","し","す","せ","そ","た","ち","つ","て","と","な","に","ぬ","ね","の","は","ひ","ふ","へ","ほ","ま","み","む","め","も","ら","り","る","れ","ろ","わ","を","や","ゆ","よ","ん","が","ぎ","ぐ","げ","ご","ざ","じ","ず","ぜ","ぞ","だ","ぢ","づ","で","ど","ば","び","ぶ","べ","ぼ","ぱ","ぴ","ぷ","ぺ","ぽ","ゃ","ゅ","ょ","っ","ー"]
+KATAKANA = ["ア","イ","ウ","エ","オ","カ","キ","ク","ケ","コ","サ","シ","ス","セ","ソ","タ","チ","ツ","テ","ト","ナ","ニ","ヌ","ネ","ノ","ハ","ヒ","フ","ヘ","ホ","マ","ミ","ム","メ","モ","ラ","リ","ル","レ","ロ","ワ","ヲ","ヤ","ユ","ヨ","ン","ガ","ギ","グ","ゲ","ゴ","ザ","ジ","ズ","ゼ","ゾ","ダ","ヂ","ヅ","デ","ド","バ","ビ","ブ","ベ","ボ","パ","ピ","プ","ペ","ポ","ャ","ュ","ョ","ッ","ー"]
+HALFKATA = []
+
+def katakanaToHiragana(katakanaChar):
+    position = KATAKANA.index(katakanaChar)
+
+    return HIRAGANA[position]
+
+def isKana(char):
+    if char in HIRAGANA or char in KATAKANA:
+        return True
+    else:
+        return False
 
 def findFiles():
     txtFiles = []
@@ -69,6 +85,8 @@ def findFields(fileName, deckList):
                 fEnd = 0
         fieldNames[currentDeck] = fieldsInDeck
 
+    print(fieldNames)
+
     return fieldNames
 
 def cleanFile(fileName, fieldNames):
@@ -102,6 +120,89 @@ def cleanFile(fileName, fieldNames):
 
     return newLines
 
+def checkBracketContentLocaction(field):
+
+    bracketFound = False
+    bracketStart = 0
+    bracketEnd = 0
+
+    for x in range(0, len(field)):
+        if field[x] == "[":
+            bracketFound = True
+            bracketStart = x + 1
+        if field[x] == "]":
+            bracketEnd = x - 1
+
+    return bracketFound, bracketStart, bracketEnd
+
+def searchForKana(field, start, end):
+
+    containsKana = False
+
+    for x in range(start, end):
+        currentChar = field[x]
+        if isKana(currentChar):
+            containsKana = True
+            return containsKana
+    
+    return containsKana
+
+def searchForComma(field, start, end):
+
+    commaFound = False
+    commaWordStart = 0
+
+    for x in range(start, end):
+        currentChar = field[x]
+        if currentChar == ",":
+            commaFound = True
+            commaWordStart = x + 1
+            return commaFound, commaWordStart
+    
+    return commaFound, commaWordStart
+
+def trippleTidy(matureValue, field, furiSearchSt, furiSearchEd, wordSearchSt, wordSearchEd, edSearchSt, edSearchEd):
+
+    furiganaField = ""
+    wordField = ""
+    for x in range(furiSearchSt, furiSearchEd):
+        currentChar = field[x]
+        if isKana(currentChar):
+            if currentChar in KATAKANA:
+                currentChar = katakanaToHiragana(currentChar)
+            furiganaField = furiganaField + currentChar
+    for y in range(wordSearchSt, wordSearchEd):
+        currentChar = field[y]
+        ordValue = ord(currentChar)
+        if ordValue > 1000:
+            wordField = wordField + currentChar
+    for z in range(edSearchSt, edSearchEd):
+        currentChar = field[z]
+        ordValue = ord(currentChar)
+        if ordValue > 1000:
+            wordField = wordField + currentChar
+    formattedLine = wordField + " " + furiganaField + " " + matureValue
+
+    return formattedLine
+
+def dupeTidy(matureValue, field):
+
+    tidiedField = ""
+    furiganaField = ""
+    for x in range(0, len(field)):
+        currentChar = field[x]
+        if isKana(currentChar):
+            tidiedField = tidiedField + currentChar
+    if tidiedField[1] in KATAKANA:
+        for y in range(0, len(tidiedField)):
+            currentChar = tidiedField[y]
+            furiganaField = furiganaField + katakanaToHiragana(currentChar)
+        formattedLine = tidiedField + " " + furiganaField + " " + matureValue
+        return formattedLine
+    else:
+        formattedLine = tidiedField + " " + tidiedField + " " + matureValue
+        return formattedLine
+
 def formatList(cleanedList):
 
     formattedList = []
@@ -113,127 +214,43 @@ def formatList(cleanedList):
         matureValue = splitLine[1]
 
         #Check for []
-        for y in range(0, len(mainField)):
-            if mainField[y] == "[":
-                bracketsFound = True
-                bracketStart = y + 1
-                for z in range(bracketStart, len(mainField)):
-                    if mainField[z] == "]":
-                        bracketEnd = z - 1
-                break
-            else:
-                bracketsFound = False
+        bracketResults = checkBracketContentLocaction(mainField)
+        bracketsFound = bracketResults[0]
 
         if bracketsFound:
+            bracketStart = bracketResults[1]
+            bracketEnd = bracketResults[2]
+
             #Check for kana
-            for b in range(bracketStart, bracketEnd):
-                currentChar = mainField[b]
-                ordValue = ord(currentChar)
-                if ordValue > 10000:
-                    kanaFound = True
-                    break
-                else:
-                    kanaFound = False
-            
+            kanaFound = searchForKana(mainField, bracketStart, bracketEnd)
             
             if kanaFound:
                 #Check for commas
-                for d in range(bracketStart, bracketEnd):
-                    currentChar = mainField[d]
-                    ordValue = ord(currentChar)
-                    if ordValue == 44:
-                        commaFound = True
-                        commaWordStart = d + 1
-                        break
-                    else:
-                        commaFound = False
+                commaResults = searchForComma(mainField, bracketStart, bracketEnd)
+                commaFound = commaResults[0]
                 
                 if commaFound:
-                    furiganaField = ""
-                    wordField = ""
-                    untidiedField = mainField
-                    if ord(untidiedField[commaWordStart]) > 1000:
-                        for h in range(commaWordStart, bracketEnd):
-                            currentChar = untidiedField[h]
-                            ordValue = ord(currentChar)
-                            if ordValue > 10000:
-                                furiganaField = furiganaField + currentChar
-                        for i in range(0, bracketStart):
-                            currentChar = untidiedField[i]
-                            ordValue = ord(currentChar)
-                            if ordValue > 1000:
-                                wordField = wordField + currentChar
-                        for j in range(bracketEnd, len(untidiedField)):
-                            currentChar = untidiedField[j]
-                            ordValue = ord(currentChar)
-                            if ordValue > 1000:
-                                wordField = wordField + currentChar
-                        formattedLine = wordField + " " + furiganaField + " " + matureValue
+                    commaWordStart = commaResults[1]
+                    if ord(mainField[commaWordStart]) > 1000:
+                        formattedLine = trippleTidy(matureValue, mainField, commaWordStart, bracketEnd, 0, bracketStart, bracketEnd, len(mainField))
                         formattedList.append(formattedLine)
 
                     else:
-                        for k in range(bracketStart, commaWordStart):
-                            currentChar = untidiedField[k]
-                            ordValue = ord(currentChar)
-                            if ordValue > 10000:
-                                furiganaField = furiganaField + currentChar
-                        for l in range(0, bracketStart):
-                            currentChar = untidiedField[l]
-                            ordValue = ord(currentChar)
-                            if ordValue > 1000:
-                                wordField = wordField + currentChar
-                        for m in range(bracketEnd, len(untidiedField)):
-                            currentChar = untidiedField[m]
-                            ordValue = ord(currentChar)
-                            if ordValue > 1000:
-                                wordField = wordField + currentChar
-                        formattedLine = wordField + " " + furiganaField + " " + matureValue
+                        formattedLine = trippleTidy(matureValue, mainField, bracketStart, commaWordStart, 0, bracketStart, bracketEnd, len(mainField))
                         formattedList.append(formattedLine)
 
                 
                 else:
-                    furiganaField = ""
-                    wordField = ""
-                    untidiedField = mainField
-                    for e in range(bracketStart, len(untidiedField)):
-                        currentChar = untidiedField[e]
-                        ordValue = ord(currentChar)
-                        if ordValue > 10000:
-                            furiganaField = furiganaField + currentChar
-                    for f in range(0, bracketStart):
-                        currentChar = untidiedField[f]
-                        ordValue = ord(currentChar)
-                        if ordValue > 1000:
-                            wordField = wordField + currentChar
-                    for g in range(bracketEnd, len(untidiedField)):
-                        currentChar = untidiedField[g]
-                        ordValue = ord(currentChar)
-                        if ordValue > 1000:
-                            wordField = wordField + currentChar
-                    formattedLine = wordField + " " + furiganaField + " " + matureValue
+                    formattedLine = trippleTidy(matureValue, mainField, bracketStart, len(mainField), 0, bracketStart, bracketEnd, len(mainField))
                     formattedList.append(formattedLine)
 
 
             else:
-                tidiedField = ""
-                untidiedField = mainField
-                for c in range(0, len(untidiedField)):
-                    currentChar = untidiedField[c]
-                    ordValue = ord(currentChar)
-                    if ordValue > 10000:
-                        tidiedField = tidiedField + currentChar
-                formattedLine = tidiedField + " " + tidiedField + " " + matureValue
+                formattedLine = dupeTidy(matureValue, mainField)
                 formattedList.append(formattedLine)
         
         else:
-            tidiedField = ""
-            untidiedField = mainField
-            for a in range(0, len(untidiedField)):
-                currentChar = untidiedField[a]
-                ordValue = ord(currentChar)
-                if ordValue > 10000:
-                    tidiedField = tidiedField + currentChar
-            formattedLine = tidiedField + " " + tidiedField + " " + matureValue
+            formattedLine = dupeTidy(matureValue, mainField)
             formattedList.append(formattedLine)
 
     return formattedList
@@ -258,8 +275,6 @@ def convertToSavingFormat(wordLines):
     convertedLines = convertedLines[:stringLength-1] + "]"
 
     return convertedLines
-
-
 
 def writeFile(fileName, content):
     currentFile = open(fileName, encoding="utf-8", mode="a")
@@ -287,7 +302,6 @@ def main():
             fieldSelection[currentDeck] = currentDeckFields
         cleanedLines = cleanedLines + cleanFile(currentFile, fieldSelection)
     formattedLines = formatList(cleanedLines)
-    writeFile("test.txt", str(formattedLines))
     sortedLines = orderLines(formattedLines)
     savingLine = convertToSavingFormat(sortedLines)
     writeFile("799d8d06-248a-49a3-8998-01ca54d81882.json", savingLine)
